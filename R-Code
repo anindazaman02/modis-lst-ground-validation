@@ -1,0 +1,72 @@
+# 1. Load required libraries
+library(readxl)
+library(ggplot2)
+
+# 2. Load the unified validation dataset
+# Make sure the path matches where you saved the new file
+df <- read_excel("E:/8th Semester/Research/Thesis Result/Validation/LST_Validation_Annual.xlsx")
+
+# 3. STATISTICAL VALIDATION CALCULATIONS
+# A. Pearson Correlation
+cor_test <- cor.test(df$BMD_Air_Temp, df$MODIS_LST, method = "pearson")
+r_value <- cor_test$estimate
+p_value <- cor_test$p.value
+r_squared <- r_value^2
+
+# B. Root Mean Square Error (RMSE)
+rmse_val <- sqrt(mean((df$MODIS_LST - df$BMD_Air_Temp)^2))
+
+# C. Mean Bias Error (MBE)
+mbe_val <- mean(df$MODIS_LST - df$BMD_Air_Temp)
+
+# 4. Print results to the console
+cat("--- SATELLITE VALIDATION RESULTS ---\n")
+cat("Pearson Correlation (r):", round(r_value, 3), "\n")
+cat("R-Squared (R²):", round(r_squared, 3), "\n")
+cat("p-value:", signif(p_value, 3), "\n")
+cat("RMSE:", round(rmse_val, 3), "°C\n")
+cat("Mean Bias Error (MBE):", round(mbe_val, 3), "°C\n")
+
+# 5. CREATE THE 1:1 VALIDATION SCATTER PLOT
+# Find the min and max values across BOTH datasets to make the plot perfectly square
+min_ax <- floor(min(c(df$BMD_Air_Temp, df$MODIS_LST))) - 1
+max_ax <- ceiling(max(c(df$BMD_Air_Temp, df$MODIS_LST))) + 1
+
+# Generate the plot
+validation_plot <- ggplot(df, aes(x = BMD_Air_Temp, y = MODIS_LST)) +
+  # Add the perfect 1:1 agreement line (Dashed Gray)
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
+  
+  # Add the actual linear regression line of the data (Solid Red)
+  geom_smooth(method = "lm", color = "red", se = FALSE, linewidth = 1) +
+  
+  # Add the data points
+  geom_point(color = "midnightblue", size = 3, alpha = 0.8) +
+  
+  # Force the X and Y axes to have the same scale and limits
+  coord_fixed(xlim = c(min_ax, max_ax), ylim = c(min_ax, max_ax)) +
+  
+  # Add statistical annotations directly onto the plot
+  annotate("text", x = min_ax + 1, y = max_ax - 1, hjust = 0, size = 4.5, fontface = "bold",
+           label = paste0("R² = ", round(r_squared, 3), 
+                          "\nRMSE = ", round(rmse_val, 2), " °C",
+                          "\np-value = ", signif(p_value, 3))) +
+  
+  # Labels and Theme
+  labs(title = "Validation of Annual LST vs. BMD Air Temperature(2003-2025)",
+       x = "BMD Maximum Air Temperature (°C)",
+       y = "MODIS Aqua Daytime LST (°C)") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 13),
+        axis.title = element_text(face = "bold"),
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.background = element_rect(fill = "white", color = NA),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5))
+
+# 6. Display the plot
+print(validation_plot)
+
+# 7. EXPORT PLOT
+plot_export_path <- "E:/8th Semester/Research/Thesis Result/Data/LST_Validation_Plot.png"
+ggsave(filename = plot_export_path, plot = validation_plot, width = 6, height = 6, dpi = 300, bg = "white")
+print(paste("Validation plot successfully saved at:", plot_export_path))
